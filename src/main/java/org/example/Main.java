@@ -17,8 +17,6 @@ import java.io.IOException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.CountDownLatch;
 
 @WebSocket
 public class Main {
@@ -66,107 +64,58 @@ public class Main {
         System.out.println("Received message: " + message);
         try {
             JsonNode jsonNode = objectMapper.readTree(message);
-            System.out.println("JsonNode: ");
-            if (jsonNode.get("MA") != null) {
-                System.out.println("MA: " + jsonNode.get("MA").get("id").asText());
-                ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, "query ma {\n" +
-                        "  factoryWorkerByMaId(maId:" + jsonNode.get("MA").get("id").asText() + ") {\n" +
-                        "    maId\n" +
-                        "    firstName\n" +
-                        "    lastName\n" +
-                        "  }\n" +
-                        "}" , Recipient.DIONE);
+            if (message.contains("DIONE")) {
+                if (jsonNode.get("MA") != null) {
+                    System.out.println("MAQueryDione");
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, "query ma {\n" +
+                            "  factoryWorkerByMaId(maId:" + jsonNode.get("MA").get("id").asText() + ") {\n" +
+                            "    maId\n" +
+                            "    firstName\n" +
+                            "    lastName\n" +
+                            "  }\n" +
+                            "}", Recipient.DIONE);
 
-            }
+                }
 
-            if (jsonNode.get("Layout") != null) {
-                System.out.println("Layout: ");
-                String machineType = "Schalung";
-                String graphqlQuery = """
-                          query MyQuery {
-                          machinesByType(machineType: "Schalung") {
-                            name
-                            currentWorkplaceGroup { 
-                              process{
-                                name
-                              }
-                            }
-                          }   
-                        }
-                                                """;
-                try {
+                if (jsonNode.get("Layout") != null) {
+                    System.out.println("LayoutQueryDione");
                     ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, "query MyQuery {\n" +
                             "                          machinesByType(machineType: \"Schalung\") {\n" +
                             "                            name\n" +
                             "                            currentWorkplaceGroup { \n" +
+                            "                              prodOrder{\n" +
+                            "                                orderNumber\n" +
+                            "                                }" +
                             "                              process{\n" +
                             "                                name\n" +
                             "                              }\n" +
+                            "                              processStates{\n" +
+                            "                                startTime\n" +
+                            "                                endTime\n" +
+                            "                                isCompleted\n" +
+                            "                                }\n" +
                             "                            }\n" +
                             "                          }   \n" +
                             "                        }", Recipient.DIONE);
-                    System.out.println("GraphQL query for machine type \"" + machineType + "\" sent successfully.");
-                } catch (Exception e) {
-                    System.err.println("Error sending GraphQL query: " + e.getMessage());
-                    // Handle the error as needed
                 }
+            } else if (message.contains("RHEA")) {
+                if (jsonNode.get("MA") != null) {
+                    System.out.println("MAQueryDione");
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, "query ma {\n" +
+                            "  factoryWorkerByMaId(maId:" + jsonNode.get("MA").get("id").asText() + ") {\n" +
+                            "    maId\n" +
+                            "    firstName\n" +
+                            "    lastName\n" +
+                            "  }\n" +
+                            "}", Recipient.RHEA);
 
-
-            }
-            if (LoggedIn) {
-                if (jsonNode.get("GetSchalung") != null) {
-                    //DB Query
-                    if (jsonNode.get("GetSchalung").get("SchalungsID").asText().equals("1")) {
-
-                        try {
-                            session.getRemote().sendString("{\"Schalung\":{\"SchalungsID\":1,\"SchalungVorbereitenStart\":\"13:57\",\"SchalungVorbereitenStop\":\"14:15\",\"KorbEinsetztenStart\":\"14:16\",\"KorbEinsetztenStop\":\"14:30\"}}");
-                        } catch (Exception e) {
-                            e.printStackTrace();
-                        }
-                    }
                 }
+                System.out.println("TO: RHEA");
             }
+
         } catch (Exception e) {
             e.printStackTrace();
         }
-
-        if (message.contains("Schalter")) {
-            //azure connection
-            //---------Azure Zeugs
-            //Nachricht zurück
-
-            try {
-                session.getRemote().sendString("Schalter geupdated");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        if (message.contains("MAID")) {
-            try {
-                ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, "query ma {\n" +
-                        "  factoryWorkerByMaId(maId: 100) {\n" +
-                        "    maId\n" +
-                        "    firstName\n" +
-                        "    lastName\n" +
-                        "  }\n" +
-                        "}", Recipient.DIONE);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
-        if (message.contains("Fertig")) {
-            //azure connection
-            //---------Azure Zeugs
-            //Nachricht zurück
-            try {
-                session.getRemote().sendString("Toll!");
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
-
     }
 
     @OnWebSocketClose
