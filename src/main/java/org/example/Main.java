@@ -110,6 +110,22 @@ public class Main {
                             "}", Recipient.RHEA);
 
                 }
+
+                if (jsonNode.get("SchalungID") != null) {
+                    System.out.println("MAQueryDione");
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, "query schalung{\n" +
+                            "  prodOrderByMachineId(id: " + jsonNode.get("SchalungID").get("id") + ") {\n" +
+                            "    workplaceGroups {\n" +
+                            "      machines {\n" +
+                            "        machineType {\n" +
+                            "          id\n" +
+                            "        }\n" +
+                            "      }\n" +
+                            "    }\n" +
+                            "  }\n" +
+                            "}", Recipient.RHEA);
+
+                }
                 System.out.println("TO: RHEA");
             }
 
