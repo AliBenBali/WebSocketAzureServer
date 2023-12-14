@@ -1,58 +1,117 @@
 package azure;
 
+import Utils.JsonUtils;
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
 
-import java.util.List;
+import java.util.*;
+
+import org.eclipse.jetty.websocket.api.Session;
 
 public class MessageProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(MessageProcessor.class);
-    private boolean printMessages;
+    private static final List<Disposable> sessionList = new ArrayList<>();
+    private static boolean extendedLogging = Settings.ENABLE_MESSAGE_PROCESSOR_EXTENDED_LOGGING;
 
+    private static Session webSocketSession;
 
-
-    public MessageProcessor() {
-        this.printMessages = false;
+    public static void setWebSocketSession(Session session) {
+        webSocketSession = session;
     }
 
-    public void processGraphqlResponsesDione() {
-        List<ServiceBusReceivedMessage> messages = ServiceBus.receiveMessagesFromSubscription(Topic.GRAPHQL_RESPONSE, Recipient.DIONE);
-        logBatch(Topic.GRAPHQL_RESPONSE, messages);
-        for (ServiceBusReceivedMessage msg : messages) {
-            logSingle(Topic.GRAPHQL_RESPONSE, msg);
+    private MessageProcessor() {
+    }
+
+    public static void startProcessing() {
+        LOGGER.info("start processing messages");
+        startSessionForTopic(Topic.GRAPHQL_RESPONSE);
+        LOGGER.info("started");
+    }
+
+    public static void stopProcessing() {
+        System.out.println("stop processing messages");
+        LOGGER.info("stop processing messages");
+        Iterator<Disposable> iterator = sessionList.iterator();
+        while (iterator.hasNext()) {
+            Disposable entry = iterator.next();
+            if (!entry.isDisposed()) {
+                entry.dispose();
+            }
+            iterator.remove();
+        }
+        LOGGER.info("stopped");
+    }
+
+    public static void toggleProcessing() {
+        if (sessionList.isEmpty()) {
+            startProcessing();
+        } else {
+            stopProcessing();
+        }
+    }
+
+    private static void startSessionForTopic(String topic) {
+            sessionList.add(ServiceBus.startAsyncMessageProcessor(topic, Recipient.DIONE));
+            sessionList.add(ServiceBus.startAsyncMessageProcessor(topic, Recipient.RHEA));
+
+    }
+
+
+    public static void sendToWebSocket(String message) {
+        if (webSocketSession != null && webSocketSession.isOpen()) {
             try {
-                String body = msg.getBody().toString();
-                LOGGER.info("Message body: " + body);
-                System.out.println("Message body: " + body);
+                webSocketSession.getRemote().sendString(message);
+                System.out.println("sent to websocket: " + message);
             } catch (Exception e) {
-                LOGGER.error(e.getClass().getSimpleName() + ": " + e.getMessage());
+                e.printStackTrace();
             }
         }
     }
 
-    public void processGraphqlResponsesRhea() {
-        List<ServiceBusReceivedMessage> messages = ServiceBus.receiveMessagesFromSubscription(Topic.GRAPHQL_RESPONSE, Recipient.RHEA);
-        logBatch(Topic.GRAPHQL_RESPONSE, messages);
-        for (ServiceBusReceivedMessage msg : messages) {
-            logSingle(Topic.GRAPHQL_RESPONSE, msg);
-            try {
-                String body = msg.getBody().toString();
-                LOGGER.info("Message body: " + body);
-                System.out.println("Message body: " + body);
-            } catch (Exception e) {
-                LOGGER.error(e.getClass().getSimpleName() + ": " + e.getMessage());
-            }
+    public static void processGraphqlResponse(ServiceBusReceivedMessage msg) {
+        logSingle(Topic.GRAPHQL_RESPONSE, msg);
+        try {
+            String body = msg.getBody().toString();
+            sendToWebSocket(body);
+        } catch (Exception e) {
+            LOGGER.error(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
     }
 
-    private void logBatch(String topic, List<ServiceBusReceivedMessage> messages) {
-        if (!messages.isEmpty())
-            LOGGER.info("processing " + messages.size() + " message(s) from topic: " + topic);
+
+    private static void logSingle(String topic, ServiceBusReceivedMessage message) {
+        System.out.println("processing 1 message from topic: " + topic);
+        LOGGER.info("processing 1 message from topic: " + topic);
+        if (extendedLogging)
+            LOGGER.info("body: " + message.getBody());
     }
 
-    private void logSingle(String topic, ServiceBusReceivedMessage message) {
-        if (printMessages)
-            LOGGER.info("Topic: " + topic + ", Sender: " + message.getReplyTo() + ", Body: " + message.getBody());
+
+    public static boolean isPrintMessages() {
+        return extendedLogging;
+    }
+
+    public static void setPrintMessages(boolean printMessages) {
+        MessageProcessor.extendedLogging = printMessages;
+    }
+
+    public static void processCustomMessage(ServiceBusReceivedMessage msg) {
+        logSingle(Topic.CUSTOM_MESSAGE, msg);
+        try {
+            String body = msg.getBody().toString();
+            Map<String, Object> data = JsonUtils.convertToMap(body);
+            String messageType = (String) data.get("messageType");
+            if (messageType.equals("processStateUpdate")) {
+                String workplaceGroupId = (String) data.get("workplaceGroupId");
+                int maId = (int) data.get("maId");
+                long timeStamp = (long) data.get("timeStamp");
+                boolean completed = (boolean) data.get("completed");
+             //   Planner.processStateUpdate(workplaceGroupId, maId, timeStamp, completed);
+            }
+        } catch (Exception e) {
+            LOGGER.error(e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
     }
 }

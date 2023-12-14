@@ -3,6 +3,9 @@ package azure;
 import com.azure.messaging.servicebus.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import reactor.core.Disposable;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -13,29 +16,32 @@ public class ServiceBus {
     private static final Logger LOGGER = LoggerFactory.getLogger(ServiceBus.class);
     private static final String CONNECTION_STRING = "Endpoint=sb://smart-factory-servicebus-dev-xn-cicek.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=Tq64j/jDE3t3dXr5ECisWtAcSDuPeSQrg+ASbCPINPQ=";
     private static final String REPLY_TO = Recipient.DIONE;
+    private static final String REPLY_TO_RHEA = Recipient.DIONE;
     private static final int PROCESSOR_TIMEOUT = 2;
+
 
     private ServiceBus() {
     }
 
-    public static void sendMessageToTopic(String topic, String recipient, String message) {
-        sendMessagesToTopic(topic, recipient, List.of(message));
+    public static void sendMessageToTopic(String topic, String recipient, String message, String replyTo) {
+        sendMessagesToTopic(topic, recipient, List.of(message), replyTo);
     }
 
-    public static void sendMessagesToTopic(String topic, String recipient, List<String> messages) {
+    public static void sendMessagesToTopic(String topic, String recipient, List<String> messages, String replyTo) {
         try (ServiceBusSenderClient senderClient = new ServiceBusClientBuilder().connectionString(CONNECTION_STRING).sender().topicName(topic).buildClient()) {
-            sendMessages(senderClient, recipient, messages, topic);
+            sendMessages(senderClient, recipient, messages, topic, replyTo);
         }
     }
 
-    private static void sendMessages(ServiceBusSenderClient senderClient, String recipient, List<String> messages, String topic) {
+    private static void sendMessages(ServiceBusSenderClient senderClient, String recipient, List<String> messages, String topic, String replyTo) {
         if (recipient != null && !recipient.isBlank()) {
             ServiceBusMessageBatch messageBatch = senderClient.createMessageBatch();
             List<ServiceBusMessage> serviceBusMessages = new ArrayList<>(messages.size());
             for (String msg : messages) {
                 ServiceBusMessage serviceBusMessage = new ServiceBusMessage(msg);
-                serviceBusMessage.setReplyTo(REPLY_TO);
+                serviceBusMessage.setReplyTo(replyTo);
                 serviceBusMessage.setTo(recipient);
+                serviceBusMessage.setSessionId("12345");
                 serviceBusMessages.add(serviceBusMessage);
             }
             for (ServiceBusMessage message : serviceBusMessages) {
@@ -56,6 +62,37 @@ public class ServiceBus {
         } else {
             LOGGER.error("Can't send message(s). No recipient specified.");
         }
+    }
+
+    public static Disposable startAsyncMessageProcessor(String topicName, String recipient) {
+        ServiceBusSessionReceiverAsyncClient sessionReceiver = new ServiceBusClientBuilder()
+                .connectionString(CONNECTION_STRING)
+                .sessionReceiver()
+                .disableAutoComplete()
+                .topicName(topicName)
+                .subscriptionName(recipient)
+                .buildAsyncClient();
+        Mono<ServiceBusReceiverAsyncClient> receiverMono = sessionReceiver.acceptNextSession();
+        Flux<Void> sessionMessages = Flux.usingWhen(receiverMono,
+                receiver -> receiver.receiveMessages().flatMap(message -> {
+                    if (topicName == null) {
+                        LOGGER.error("unknown topic: " + topicName);
+                        System.out.println("5unknown topic: " + topicName);
+                    } else {
+                        switch (topicName) {
+                            case Topic.GRAPHQL_RESPONSE -> MessageProcessor.processGraphqlResponse(message);
+                            case Topic.CUSTOM_MESSAGE -> MessageProcessor.processCustomMessage(message);
+                        }
+                    }
+                    return receiver.complete(message);
+                }),
+                receiver -> Mono.fromRunnable(() -> {
+                    receiver.close();
+                    sessionReceiver.close();
+                }));
+        return sessionMessages.subscribe(unused -> {
+            System.out.println("8Gescheiterter Versuch");
+        }, error -> System.out.println("9Error: " + error.getMessage()), () -> System.out.println("10Completed"));
     }
 
     public static List<ServiceBusReceivedMessage> receiveMessagesFromSubscription(String topicName, String subscriptionName) {
