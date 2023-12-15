@@ -65,6 +65,7 @@ public class Main {
         try {
             JsonNode jsonNode = objectMapper.readTree(message);
             if (message.contains("DIONE")) {
+                System.out.println("TO: DIONE");
                 if (jsonNode.get("MA") != null) {
                     System.out.println("MAQueryDione");
                     ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, "query ma {\n" +
@@ -79,24 +80,26 @@ public class Main {
 
                 if (jsonNode.get("Layout") != null) {
                     System.out.println("LayoutQueryDione");
-                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, "query MyQuery {\n" +
-                            "                          machinesByType(machineType: \"Schalung\") {\n" +
-                            "                            name\n" +
-                            "                            currentWorkplaceGroup { \n" +
-                            "                              prodOrder{\n" +
-                            "                                orderNumber\n" +
-                            "                                }" +
-                            "                              process{\n" +
-                            "                                name\n" +
-                            "                              }\n" +
-                            "                              processStates{\n" +
-                            "                                startTime\n" +
-                            "                                endTime\n" +
-                            "                                isCompleted\n" +
-                            "                                }\n" +
-                            "                            }\n" +
-                            "                          }   \n" +
-                            "                        }", Recipient.DIONE);
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, "query q {\n" +
+                            "  machinesByType(machineType: \"Schalung\") {\n" +
+                            "    name\n" +
+                            "    currentWorkplaceGroup {\n" +
+                            "      prodOrder {\n" +
+                            "        orderNumber\n" +
+                            "        workplaceGroups {\n" +
+                            "          process {\n" +
+                            "            name\n" +
+                            "          }\n" +
+                            "          processStates {\n" +
+                            "            startTime\n" +
+                            "            endTime\n" +
+                            "            isCompleted\n" +
+                            "          }\n" +
+                            "        }\n" +
+                            "      }\n" +
+                            "    }\n" +
+                            "  }\n" +
+                            "}", Recipient.DIONE);
                 }
             } else if (message.contains("RHEA")) {
                 if (jsonNode.get("MA") != null) {
