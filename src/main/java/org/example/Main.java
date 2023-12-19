@@ -30,6 +30,7 @@ public class Main {
 
     public static void main(String[] args) {
         MessageProcessor.startProcessing();
+        startWebsocketPingThread();
         org.eclipse.jetty.server.Server server = new org.eclipse.jetty.server.Server(8080);
 
 
@@ -45,10 +46,27 @@ public class Main {
         try {
             server.start();
             server.join();
+
         } catch (Exception e) {
             e.printStackTrace();
         }
 
+    }
+
+    private static void startWebsocketPingThread() {
+        Thread t = new Thread(() -> {
+            while (true) {
+                MessageProcessor.sendToWebSocket("Ping");
+                try {
+                    Thread.sleep(20_000);
+                } catch (InterruptedException ignored) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        });
+        t.setDaemon(true);
+        t.setName("Ping");
+        t.start();
     }
 
 
