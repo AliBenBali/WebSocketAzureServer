@@ -73,6 +73,7 @@ public class MessageProcessor {
     public static void processGraphqlResponse(ServiceBusReceivedMessage msg) {
         logSingle(Topic.GRAPHQL_RESPONSE, msg);
         try {
+            System.out.println("processing graphql response");
             String body = msg.getBody().toString();
             sendToWebSocket(body);
         } catch (Exception e) {

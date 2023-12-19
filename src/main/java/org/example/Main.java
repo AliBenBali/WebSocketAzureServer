@@ -103,7 +103,7 @@ public class Main {
                 }
             } else if (message.contains("RHEA")) {
                 if (jsonNode.get("MA") != null) {
-                    System.out.println("MAQueryDione");
+                    System.out.println("MAQueryRhea");
                     ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, "query ma {\n" +
                             "  factoryWorkerByMaId(maId:" + jsonNode.get("MA").get("id").asText() + ") {\n" +
                             "    maId\n" +
@@ -115,15 +115,27 @@ public class Main {
                 }
 
                 if (jsonNode.get("SchalungID") != null) {
-                    System.out.println("MAQueryDione");
+                    System.out.println("SchalungIDQueryRhea");
                     ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, "query schalung{\n" +
                             "  prodOrderByMachineId(id: " + jsonNode.get("SchalungID").get("id") + ") {\n" +
                             "    workplaceGroups {\n" +
                             "      machines {\n" +
-                            "        machineType {\n" +
-                            "          id\n" +
-                            "        }\n" +
+                            "        name\n" +
                             "      }\n" +
+                            "    }\n" +
+                            "  }\n" +
+                            "}", Recipient.RHEA);
+
+                }
+
+                if (jsonNode.get("allMachines") != null) {
+                    System.out.println("AllMachinesQueryRhea");
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, "query allMachineIDRhea {\n" +
+                            "  machinesByType(machineType: \"Schalung\") {\n" +
+                            "    name\n" +
+                            "    id\n" +
+                            "    currentWorkplaceGroup {\n" +
+                            "      id\n" +
                             "    }\n" +
                             "  }\n" +
                             "}", Recipient.RHEA);
@@ -131,6 +143,42 @@ public class Main {
                 }
                 System.out.println("TO: RHEA");
             }
+
+            if (jsonNode.get("SchalungSicht") != null) {
+                System.out.println("SchalungsSichtQueryRhea");
+                String sID = String.valueOf(jsonNode.get("SchalungSicht").get("id"));
+                ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, "query getSchalungsInfo {\n" +
+                        "  prodOrderByMachineId(id: "+ sID+") {\n" +
+                        "    workplaceGroups {\n" +
+                        "      id\n" +
+                        "      process {\n" +
+                        "        name\n" +
+                        "      }\n" +
+                        "      processStates {\n" +
+                        "        startTime\n" +
+                        "        endTime\n" +
+                        "        isCompleted\n" +
+                        "      }\n" +
+                        "    }\n" +
+                        "    orderPosition {\n" +
+                        "      order {\n" +
+                        "        project {\n" +
+                        "          projectNumber\n" +
+                        "        }\n" +
+                        "      }\n" +
+                        "      article {\n" +
+                        "        name\n" +
+                        "        boms {\n" +
+                        "          bomName\n" +
+                        "        }\n" +
+                        "      }\n" +
+                        "    }\n" +
+                        "  }\n" +
+                        "}", Recipient.RHEA);
+
+            }
+            System.out.println("TO: RHEA");
+
 
         } catch (Exception e) {
             e.printStackTrace();
