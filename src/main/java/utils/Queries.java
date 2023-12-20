@@ -27,7 +27,7 @@ public class Queries {
             """;
     private static final String MA_QUERY = """
             query ma {
-              factoryWorkerByMaId(maId:"MA_ID") {
+              factoryWorkerByMaId(maId: MA_ID) {
                 maId
                 firstName
                 lastName
