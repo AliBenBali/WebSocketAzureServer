@@ -46,7 +46,7 @@ public class MessageProcessor {
 
     public static void pingWebsocket() {
         for(String recipient : sessionMap.keySet()) {
-            sendToWebSocket(recipient, "");
+            sendToWebSocket(recipient, "Ping");
         }
     }
 
