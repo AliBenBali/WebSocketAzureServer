@@ -5,18 +5,19 @@ import org.eclipse.jetty.websocket.api.Session;
 import reactor.core.Disposable;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class MessageProcessor {
     private static final List<Disposable> sessionList = new ArrayList<>();
-
-    private static Session webSocketSession;
+    private static final Map<String, Session> sessionMap = new HashMap<>();
 
     private MessageProcessor() {
     }
 
-    public static void setWebSocketSession(Session session) {
-        webSocketSession = session;
+    public static void setWebSocketSession(String recipient, Session session) {
+        sessionMap.put(recipient, session);
     }
 
     public static void startProcessing() {
@@ -30,11 +31,10 @@ public class MessageProcessor {
         sessionList.add(ServiceBus.startAsyncMessageProcessor(topic, Recipient.RHEA));
     }
 
-
-    public static void sendToWebSocket(String message) {
-        if (webSocketSession != null && webSocketSession.isOpen()) {
+    public static void sendToWebSocket(String recipient, String message) {
+        if (sessionMap.containsKey(recipient) && sessionMap.get(recipient).isOpen()) {
             try {
-                webSocketSession.getRemote().sendString(message);
+                sessionMap.get(recipient).getRemote().sendString(message);
                 if (Settings.ENABLE_MESSAGE_PROCESSOR_EXTENDED_LOGGING) {
                     System.out.println("sent to websocket: " + message);
                 }
@@ -44,12 +44,18 @@ public class MessageProcessor {
         }
     }
 
+    public static void pingWebsocket() {
+        for(String recipient : sessionMap.keySet()) {
+            sendToWebSocket(recipient, "");
+        }
+    }
+
     public static void processGraphqlResponse(ServiceBusReceivedMessage msg) {
         logSingle(Topic.GRAPHQL_RESPONSE, msg);
         try {
             System.out.println("processing graphql response");
             String body = msg.getBody().toString();
-            sendToWebSocket(body);
+            sendToWebSocket(msg.getTo(), body);
         } catch (Exception e) {
             System.out.println(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
