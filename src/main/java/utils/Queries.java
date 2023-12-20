@@ -83,6 +83,13 @@ public class Queries {
                     }
                   }
                 }
+                productAssembly {
+                  processList {
+                    processes {
+                      name
+                    }
+                  }
+                }
               }
             }
             """;
