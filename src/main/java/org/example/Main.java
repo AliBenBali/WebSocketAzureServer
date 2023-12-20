@@ -92,6 +92,8 @@ public class Main {
                     System.out.println("SchalungsSichtQueryRhea");
                     ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, Queries.getSchalungsSichtQueryRhea(jsonNode.get("SchalungSicht").get("id").textValue()), Recipient.RHEA);
                 }
+            } else {
+                ServiceBus.sendMessageToTopic(Topic.CUSTOM_MESSAGE, Recipient.SATURN, message, "");
             }
             System.out.println("TO: RHEA");
         } catch (Exception e) {
