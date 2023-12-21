@@ -13,6 +13,9 @@ import org.eclipse.jetty.websocket.server.WebSocketHandler;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 import utils.Queries;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @WebSocket
 public class Main {
 
@@ -62,38 +65,41 @@ public class Main {
 
     @OnWebSocketMessage
     public void onMessage(Session session, String message) {
+        int dividerIndex = message.indexOf(";");
+        String frontendId = message.substring(0, dividerIndex);
+        message = message.substring(dividerIndex + 1);
         final ObjectMapper objectMapper = new ObjectMapper();
         System.out.println("Received message: " + message);
         try {
             JsonNode jsonNode = objectMapper.readTree(message);
             if (message.contains("DIONE")) {
-                MessageProcessor.setWebSocketSession(Recipient.DIONE, session);
+                MessageProcessor.setWebSocketSession(Recipient.DIONE, frontendId, session);
                 System.out.println("TO: DIONE");
                 if (jsonNode.get("Layout") != null) {
                     System.out.println("LayoutQueryDione");
-                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, Queries.getLayoutQueryDione(), Recipient.DIONE);
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, Queries.getLayoutQueryDione(), Recipient.DIONE, frontendId);
                 }
             } else if (message.contains("RHEA")) {
-                MessageProcessor.setWebSocketSession(Recipient.RHEA, session);
+                MessageProcessor.setWebSocketSession(Recipient.RHEA, frontendId, session);
                 System.out.println("TO: RHEA");
                 if (jsonNode.get("MA") != null) {
                     System.out.println("MAQueryRhea");
-                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, Queries.getMaQuery(jsonNode.get("MA").get("id").asText()), Recipient.RHEA);
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, Queries.getMaQuery(jsonNode.get("MA").get("id").asText()), Recipient.RHEA, frontendId);
                 }
                 if (jsonNode.get("SchalungID") != null) {
                     System.out.println("SchalungIDQueryRhea");
-                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, Queries.getSchalungIdQueryRhea(jsonNode.get("SchalungID").get("id").asText()), Recipient.RHEA);
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, Queries.getSchalungIdQueryRhea(jsonNode.get("SchalungID").get("id").asText()), Recipient.RHEA, frontendId);
                 }
                 if (jsonNode.get("allMachines") != null) {
                     System.out.println("AllMachinesQueryRhea");
-                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, Queries.getAllMachinesQueryRhea(), Recipient.RHEA);
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.TITAN, Queries.getAllMachinesQueryRhea(), Recipient.RHEA, frontendId);
                 }
                 if (jsonNode.get("SchalungSicht") != null) {
                     System.out.println("SchalungsSichtQueryRhea");
-                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, Queries.getSchalungsSichtQueryRhea(jsonNode.get("SchalungSicht").get("id").textValue()), Recipient.RHEA);
+                    ServiceBus.sendMessageToTopic(Topic.GRAPHQL_QUERY, Recipient.SATURN, Queries.getSchalungsSichtQueryRhea(jsonNode.get("SchalungSicht").get("id").textValue()), Recipient.RHEA, frontendId);
                 }
             } else {
-                ServiceBus.sendMessageToTopic(Topic.CUSTOM_MESSAGE, Recipient.SATURN, message, "");
+                ServiceBus.sendMessageToTopic(Topic.CUSTOM_MESSAGE, Recipient.SATURN, message, "", frontendId);
             }
             System.out.println("TO: RHEA");
         } catch (Exception e) {

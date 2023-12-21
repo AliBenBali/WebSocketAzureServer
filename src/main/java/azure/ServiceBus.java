@@ -14,17 +14,17 @@ public class ServiceBus {
     private ServiceBus() {
     }
 
-    public static void sendMessageToTopic(String topic, String recipient, String message, String replyTo) {
-        sendMessagesToTopic(topic, recipient, List.of(message), replyTo);
+    public static void sendMessageToTopic(String topic, String recipient, String message, String replyTo, String forntendId) {
+        sendMessagesToTopic(topic, recipient, List.of(message), replyTo, forntendId);
     }
 
-    public static void sendMessagesToTopic(String topic, String recipient, List<String> messages, String replyTo) {
+    public static void sendMessagesToTopic(String topic, String recipient, List<String> messages, String replyTo, String frontendId) {
         try (ServiceBusSenderClient senderClient = new ServiceBusClientBuilder().connectionString(CONNECTION_STRING).sender().topicName(topic).buildClient()) {
-            sendMessages(senderClient, recipient, messages, topic, replyTo);
+            sendMessages(senderClient, recipient, messages, topic, replyTo, frontendId);
         }
     }
 
-    private static void sendMessages(ServiceBusSenderClient senderClient, String recipient, List<String> messages, String topic, String replyTo) {
+    private static void sendMessages(ServiceBusSenderClient senderClient, String recipient, List<String> messages, String topic, String replyTo, String frontendId) {
         if (recipient != null && !recipient.isBlank()) {
             ServiceBusMessageBatch messageBatch = senderClient.createMessageBatch();
             List<ServiceBusMessage> serviceBusMessages = new ArrayList<>(messages.size());
@@ -33,6 +33,7 @@ public class ServiceBus {
                 serviceBusMessage.setReplyTo(replyTo);
                 serviceBusMessage.setTo(recipient);
                 serviceBusMessage.setSessionId("12345");
+                serviceBusMessage.setSubject(frontendId);
                 serviceBusMessages.add(serviceBusMessage);
             }
             for (ServiceBusMessage message : serviceBusMessages) {
