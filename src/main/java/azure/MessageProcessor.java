@@ -2,15 +2,16 @@ package azure;
 
 import com.azure.messaging.servicebus.ServiceBusReceivedMessage;
 import org.eclipse.jetty.websocket.api.Session;
-import org.example.Main;
 import reactor.core.Disposable;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 public class MessageProcessor {
     private static final Map<String, Frontend> FRONTEND_SESSION_MAP = new HashMap<>();
-    private static final List<Disposable> SERVICE_BUS_SESSIONS = new ArrayList<>();
+    private static final Map<String, Disposable> sessionMap = new HashMap<>();
 
     private MessageProcessor() {
     }
@@ -21,20 +22,36 @@ public class MessageProcessor {
 
     public static void startProcessing() {
         System.out.println("start processing messages");
-        startSessionsForTopic(Topic.GRAPHQL_RESPONSE);
+        startSessionsForRecipient(Recipient.DIONE);
+        startSessionsForRecipient(Recipient.RHEA);
         System.out.println("started");
     }
 
-    private static void startSessionsForTopic(String topic) {
-        SERVICE_BUS_SESSIONS.add(ServiceBus.startAsyncMessageProcessor(topic, Recipient.DIONE));
-        SERVICE_BUS_SESSIONS.add(ServiceBus.startAsyncMessageProcessor(topic, Recipient.RHEA));
+    public static void toggleRheaProcessing() {
+        if (sessionMap.containsKey(Recipient.RHEA)) {
+            Disposable disposable = sessionMap.get(Recipient.RHEA);
+            if (!disposable.isDisposed()) {
+                disposable.dispose();
+            }
+            sessionMap.remove(Recipient.RHEA);
+            System.out.println("ServiceBus RHEA closed");
+        } else {
+            startSessionsForRecipient(Recipient.RHEA);
+        }
+    }
+
+    private static void startSessionsForRecipient(String recipient) {
+        if (!sessionMap.containsKey(recipient)) {
+            sessionMap.put(recipient, ServiceBus.startAsyncMessageProcessor(Topic.GRAPHQL_RESPONSE, recipient));
+            System.out.println("ServiceBus " + recipient + " started");
+        }
     }
 
     public static void sendToWebSocket(String recipient, String frontendId, String message) {
-        if(frontendId != null) {
-            if(FRONTEND_SESSION_MAP.containsKey(frontendId)) {
+        if (frontendId != null) {
+            if (FRONTEND_SESSION_MAP.containsKey(frontendId)) {
                 Session session = FRONTEND_SESSION_MAP.get(frontendId).session();
-                if(session.isOpen()) {
+                if (session.isOpen()) {
                     try {
                         session.getRemote().sendString(message);
                         System.out.println("sent to websocket to frontendId " + frontendId + ": " + message);
@@ -49,9 +66,9 @@ public class MessageProcessor {
             Iterator<Frontend> iterator = FRONTEND_SESSION_MAP.values().iterator();
             while (iterator.hasNext()) {
                 Frontend frontend = iterator.next();
-                if(frontend.type().equals(recipient)) {
+                if (frontend.type().equals(recipient)) {
                     Session session = frontend.session();
-                    if(session.isOpen()) {
+                    if (session.isOpen()) {
                         try {
                             session.getRemote().sendString(message);
                             System.out.println("sent to websocket for type " + recipient + ": " + message);

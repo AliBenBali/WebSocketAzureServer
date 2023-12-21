@@ -13,8 +13,7 @@ import org.eclipse.jetty.websocket.server.WebSocketHandler;
 import org.eclipse.jetty.websocket.servlet.WebSocketServletFactory;
 import utils.Queries;
 
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Scanner;
 
 @WebSocket
 public class Main {
@@ -22,6 +21,7 @@ public class Main {
     public static void main(String[] args) {
         MessageProcessor.startProcessing();
         startWebsocketPingThread();
+        startCLIThread();
         Server server = new Server(8080);
 
         WebSocketHandler wsHandler = new WebSocketHandler() {
@@ -115,5 +115,31 @@ public class Main {
     @OnWebSocketError
     public void onError(Session session, Throwable error) {
         System.err.println("WebSocket error: " + error.getMessage());
+    }
+
+    private static void startCLIThread() {
+        Thread t = new Thread(() -> {
+            Scanner scanner = new Scanner(System.in);
+            while (true) {
+                try {
+                    String command = scanner.next();
+                    if (command == null) {
+                        continue;
+                    }
+                    switch (command) {
+                        case "toggleRheaProcessing" -> MessageProcessor.toggleRheaProcessing();
+                        default -> System.out.println("unknown command");
+                    }
+                } catch (Exception e) {
+                    if (e.getMessage() != null) {
+                        System.out.println(e.getClass().getSimpleName() + ": " + e.getMessage());
+                    }
+                    scanner = new Scanner(System.in);
+                }
+            }
+        });
+        t.setDaemon(true);
+        t.setName("CLI");
+        t.start();
     }
 }
